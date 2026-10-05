@@ -1,0 +1,153 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Site Snapshot — PrismWave</title>
+  <style>
+    :root {
+      --bg: #0f2e1d;
+      --surface: #163d28;
+      --ink: #e8f5e9;
+      --muted: #8fbc8f;
+      --accent: #4ade80;
+      --good: #22c55e;
+      --warn: #eab308;
+      --bad: #ef4444;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: system-ui, -apple-system, sans-serif;
+      background: var(--bg);
+      color: var(--ink);
+      line-height: 1.5;
+      padding: 32px 20px;
+      max-width: 640px;
+      margin: 0 auto;
+    }
+    h1 { font-size: 1.4rem; margin-bottom: 6px; }
+    .sub { color: var(--muted); font-size: 0.9rem; margin-bottom: 28px; }
+    label { display: block; font-size: 0.85rem; color: var(--muted); margin-bottom: 6px; }
+    input {
+      width: 100%;
+      padding: 12px 14px;
+      background: var(--surface);
+      border: 1px solid #2d5a3f;
+      border-radius: 6px;
+      color: var(--ink);
+      font-size: 0.95rem;
+      margin-bottom: 16px;
+    }
+    input:focus { outline: none; border-color: var(--accent); }
+    button {
+      width: 100%;
+      padding: 12px;
+      background: var(--accent);
+      color: #0f2e1d;
+      border: none;
+      border-radius: 6px;
+      font-size: 0.95rem;
+      font-weight: 600;
+      cursor: pointer;
+    }
+    button:hover { filter: brightness(1.08); }
+    button:disabled { opacity: 0.5; cursor: not-allowed; }
+    #results { margin-top: 32px; display: none; }
+    .card {
+      background: var(--surface);
+      border: 1px solid #2d5a3f;
+      border-radius: 8px;
+      padding: 16px 18px;
+      margin-bottom: 12px;
+    }
+    .card h3 { font-size: 0.8rem; text-transform: uppercase; letter-spacing: 0.04em; color: var(--muted); margin-bottom: 8px; }
+    .row { display: flex; justify-content: space-between; align-items: center; margin: 6px 0; font-size: 0.95rem; }
+    .badge {
+      font-size: 0.75rem;
+      padding: 2px 8px;
+      border-radius: 99px;
+      font-weight: 500;
+    }
+    .good { background: #14532d; color: var(--good); }
+    .warn { background: #422006; color: var(--warn); }
+    .bad  { background: #450a0a; color: var(--bad); }
+    .note { font-size: 0.85rem; color: var(--muted); margin-top: 18px; }
+  </style>
+</head>
+<body>
+
+  <h1>Site Snapshot</h1>
+  <p class="sub">Quick public signals for outreach. No login, no tracking, just what the browser can see.</p>
+
+  <label for="url">Website URL</label>
+  <input id="url" type="url" placeholder="https://example.com" value="" />
+  <button id="run">Run snapshot</button>
+
+  <div id="results"></div>
+
+  <script>
+    const $ = (sel) => document.querySelector(sel);
+
+    $("#run").addEventListener("click", async () => {
+      const raw = $("#url").value.trim();
+      if (!raw) return;
+
+      const url = raw.startsWith("http") ? raw : `https://${raw}`;
+      const btn = $("#run");
+      const out = $("#results");
+
+      btn.disabled = true;
+      btn.textContent = "Checking…";
+      out.style.display = "none";
+      out.innerHTML = "";
+
+      try {
+        const start = performance.now();
+        const res = await fetch(url, { method: "GET", mode: "cors" }).catch(() => null);
+        const elapsed = Math.round(performance.now() - start);
+
+        const status = res ? res.status : "blocked / failed";
+        const ok = res && res.ok;
+        const server = res ? (res.headers.get("server") || "—") : "—";
+        const contentType = res ? (res.headers.get("content-type") || "—") : "—";
+        const cache = res ? (res.headers.get("cache-control") || "—") : "—";
+
+        const statusBadge = ok
+          ? `<span class="badge good">OK</span>`
+          : `<span class="badge bad">Issue</span>`;
+
+        const timeBadge = elapsed < 800
+          ? `<span class="badge good">${elapsed} ms</span>`
+          : elapsed < 1800
+            ? `<span class="badge warn">${elapsed} ms</span>`
+            : `<span class="badge bad">${elapsed} ms</span>`;
+
+        out.innerHTML = `
+          <div class="card">
+            <h3>Response</h3>
+            <div class="row"><span>Status</span> ${statusBadge} ${status}</div>
+            <div class="row"><span>Time to first byte (approx)</span> ${timeBadge}</div>
+          </div>
+          <div class="card">
+            <h3>Headers (public)</h3>
+            <div class="row"><span>Server</span> <span>${server}</span></div>
+            <div class="row"><span>Content-Type</span> <span>${contentType}</span></div>
+            <div class="row"><span>Cache-Control</span> <span>${cache}</span></div>
+          </div>
+          <p class="note">
+            This is a lightweight client-side check only. 
+            For a full audit (mobile, SEO, performance, accessibility) we still use the free PrismWave review.
+          </p>
+        `;
+        out.style.display = "block";
+      } catch (err) {
+        out.innerHTML = `<div class="card"><p style="color:var(--bad)">Could not reach the site from this browser.</p></div>`;
+        out.style.display = "block";
+      } finally {
+        btn.disabled = false;
+        btn.textContent = "Run snapshot";
+      }
+    });
+  </script>
+</body>
+</html>
